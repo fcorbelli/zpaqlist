@@ -59,3 +59,7 @@ For small archives (KB) there is obviously no difference compared to zpaq
 
 -pakka for more verbose
 
+# How to compile (Windows)
+```
+g++ -s -O3  zpaqlist.cpp -o zpaqlist -static  
+```
