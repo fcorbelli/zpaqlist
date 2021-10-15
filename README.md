@@ -48,7 +48,7 @@ The output of zpaqlist is composed by
 
 ### Example (two record)
 _The file f:/zarc/ihsv/pakka/30_3/zpaqfranz.exe is 3.089.462 bytes long,
-and was found in the 946 version, @ 02/10/2020 14:25:34  (European-style date format)
+and was found in the 946 version, @ 02/10/2020 14:25:34  (European-style date format)  
 In the version 959 the file result deleted (not present)_
 ```
 -946
