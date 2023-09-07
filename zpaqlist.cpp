@@ -1,10 +1,15 @@
 /*
-                                                              
 
-## This is zpaqlist, a patched  ZPAQ version 6.60 
+## This is zpaqlist, based on ZPAQ version 6.60 
 (http://mattmahoney.net/dc/zpaq.html)
+                              
 
-## **Provided as-is, with no warranty whatsoever, by Franco Corbelli, franco@francocorbelli.com**
+WWW: https://github.com/fcorbelli/zpaqlist
+
+   Provided as-is, with no warranty whatsoever,
+             by Franco Corbelli
+          franco@francocorbelli.com
+
 
 Software to list the contents of zpaq files in the most concise way possible, 
 to reduce the time necessary for subsequent uses (e.g. from GUIs written in other languages),
@@ -50,7 +55,6 @@ D
 0
 ?
 
-
 When the size of the output is large (and can even be hundreds of MB) 
 the savings both in writing (on magnetic disks), reading and parsing 
 can be considerable. 
@@ -59,9 +63,80 @@ For small archives (KB) there is obviously no difference compared to zpaq
 
 -pakka for more verbose
 
+
+
+        _      _____ _____ ______ _   _  _____ ______  _____ 
+       | |    |_   _/ ____|  ____| \ | |/ ____|  ____|/ ____|
+       | |      | || |    | |__  |  \| | (___ | |__  | (___  
+       | |      | || |    |  __| | . ` |\___ \|  __|  \___ \ 
+       | |____ _| || |____| |____| |\  |____) | |____ ____) |
+       |______|_____\_____|______|_| \_|_____/|______|_____/ 
+
+ 0 [MIT]                zpaqlist
+   MIT License
+   Copyright (c) 2021-2023 Franco Corbelli
+   
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+   
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+
+ 1 [GPL v3]                zpaq 6.60 http://www.gnu.org/copyleft/gpl.html
+   Copyright (C) 2009-2014, Dell Inc. Written by Matt Mahoney.
+
+   LICENSE
+
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License as
+   published by the Free Software Foundation; either version 3 of
+   the License, or (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details at
+   Visit <http://www.gnu.org/copyleft/gpl.html>.
+
+ 2 [MIT]                   divsufsort.c from libdivsufsort-lite is (C) 2003-2008, Yuta Mori
+    and is embedded in this file. It is licensed under the MIT license
+    described below.
+
+ 3 [Public domain]         libzpaq.h - LIBZPAQ Version 7.00 header - Dec. 15, 2014.
+   This software is provided as-is, with no warranty.
+   I, Matt Mahoney, on behalf of Dell Inc., release this software into
+   the public domain.   This applies worldwide.
+   In some countries this may not be legally possible; if so:
+   I grant anyone the right to use this software for any purpose,
+   without any conditions, unless such conditions are required by law.
+  
+ 3 [Public domain]         libzpaq.cpp - LIBZPAQ Version 6.52 implementation - May 9, 2014.
+   This software is provided as-is, with no warranty.
+   I, Matt Mahoney, on behalf of Dell Inc., release this software into
+   the public domain.   This applies worldwide.
+   In some countries this may not be legally possible; if so:
+   I grant anyone the right to use this software for any purpose,
+   without any conditions, unless such conditions are required by law.
+
 */
 
-#define ZPAQLIST_VERSION "franz24"
+#define ZPAQLIST_VERSION "25a"
 
 #define _FILE_OFFSET_BITS 64  
 #define UNICODE
@@ -74,6 +149,9 @@ For small archives (KB) there is obviously no difference compared to zpaq
 #include <map>
 #include <fcntl.h>
 
+using std::string;
+using std::vector;
+using std::map;
 
 
 namespace libzpaq {
@@ -83,11 +161,6 @@ typedef uint8_t U8;
 typedef uint16_t U16;
 typedef uint32_t U32;
 typedef uint64_t U64;
-
-// Tables for parsing ZPAQL source code
-extern const char* compname[256];    // list of ZPAQL component types
-extern const int compsize[256];      // number of bytes to encode a component
-extern const char* opcodelist[272];  // list of ZPAQL instructions
 
 // Callback for error handling
 extern void error(const char* msg);
@@ -111,7 +184,6 @@ public:
 };
 
 // Read 16 bit little-endian number
-int toU16(const char* p);
 
 // An Array of T is cleared and aligned on a 64 byte address
 //   with no constructors called. No copy or assignment.
@@ -241,7 +313,6 @@ void stretchKey(char* out, const char* key, const char* salt);
 
 // Symbolic constants, instruction size, and names
 typedef enum {NONE,CONS,CM,ICM,MATCH,AVG,MIX2,MIX,ISSE,SSE} CompType;
-extern const int compsize[256];
 
 // A ZPAQL machine COMP+HCOMP or PCOMP.
 class ZPAQL {
@@ -468,78 +539,6 @@ private:
   PostProcessor pp;
   enum {BLOCK, FILENAME, COMMENT, DATA, SEGEND} state;  // expected next
   enum {FIRSTSEG, SEG, SKIP} decode_state;  // which segment in block?
-};
-
-/////////////////////////// decompress() /////////////////////
-
-void decompress(Reader* in, Writer* out);
-
-//////////////////////////// Encoder /////////////////////////
-
-// Encoder compresses using an arithmetic code
-class Encoder {
-public:
-  Encoder(ZPAQL& z):
-    out(0), low(1), high(0xFFFFFFFF), pr(z) {}
-  void init();
-  void compress(int c);  // c is 0..255 or EOF
-  int stat(int x) {return pr.stat(x);}
-  Writer* out;  // destination
-private:
-  U32 low, high; // range
-  Predictor pr;  // to get p
-  Array<char> buf; // unmodeled input
-  void encode(int y, int p); // encode bit y (0..1) with prob. p (0..65535)
-};
-
-//////////////////////////// Compiler ////////////////////////
-
-// Input ZPAQL source code with args and store the compiled code
-// in hz and pz and write pcomp_cmd to out2.
-
-class Compiler {
-public:
-  Compiler(const char* in, int* args, ZPAQL& hz, ZPAQL& pz, Writer* out2);
-private:
-  const char* in;  // ZPAQL source code
-  int* args;       // Array of up to 9 args, default NULL = all 0
-  ZPAQL& hz;       // Output of COMP and HCOMP sections
-  ZPAQL& pz;       // Output of PCOMP section
-  Writer* out2;    // Output ... of "PCOMP ... ;"
-  int line;        // Input line number for reporting errors
-  int state;       // parse state: 0=space -1=word >0 (nest level)
-
-  // Symbolic constants
-  typedef enum {NONE,CONS,CM,ICM,MATCH,AVG,MIX2,MIX,ISSE,SSE,
-    JT=39,JF=47,JMP=63,LJ=255,
-    POST=256,PCOMP,END,IF,IFNOT,ELSE,ENDIF,DO,
-    WHILE,UNTIL,FOREVER,IFL,IFNOTL,ELSEL,SEMICOLON} CompType;
-
-  void syntaxError(const char* msg, const char* expected=0); // error()
-  void next();                     // advance in to next token
-  bool matchToken(const char* tok);// in==token?
-  int rtoken(int low, int high);   // return token which must be in range
-  int rtoken(const char* list[]);  // return token by position in list
-  void rtoken(const char* s);      // return token which must be s
-  int compile_comp(ZPAQL& z);      // compile either HCOMP or PCOMP
-
-  // Stack of n elements
-  class Stack {
-    libzpaq::Array<U16> s;
-    size_t top;
-  public:
-    Stack(int n): s(n), top(0) {}
-    void push(const U16& x) {
-      if (top>=s.size()) error("IF or DO nested too deep");
-      s[top++]=x;
-    }
-    U16 pop() {
-      if (top<=0) error("unmatched IF or DO");
-      return s[--top];
-    }
-  };
-
-  Stack if_stack, do_stack;
 };
 
 
@@ -2788,384 +2787,9 @@ void decompress(Reader* in, Writer* out) {
   }
 }
 
-/////////////////////////// Encoder ///////////////////////////
-
-// Initialize for start of block
-void Encoder::init() {
-  low=1;
-  high=0xFFFFFFFF;
-  pr.init();
-  if (!pr.isModeled()) low=0, buf.resize(1<<16);
-}
-
-// compress bit y having probability p/64K
-void Encoder::encode(int y, int p) {
- 
-  U32 mid=low+U32(((high-low)*U64(U32(p)))>>16);  // split range
-
-  if (y) high=mid; else low=mid+1; // pick half
-  while ((high^low)<0x1000000) { // write identical leading bytes
-    out->put(high>>24);  // same as low>>24
-    high=high<<8|255;
-    low=low<<8;
-    low+=(low==0); // so we don't code 4 0 bytes in a row
-  }
-}
-
-// compress byte c (0..255 or -1=EOS)
-void Encoder::compress(int c) {
-
-  if (pr.isModeled()) {
-    if (c==-1)
-      encode(1, 0);
-    else {
-  
-      encode(0, 0);
-      for (int i=7; i>=0; --i) {
-        int p=pr.predict()*2+1;
-
-        int y=c>>i&1;
-        encode(y, p);
-        pr.update(y);
-      }
-    }
-  }
-  else {
-    if (low && (c<0 || low==buf.size())) {
-      out->put((low>>24)&255);
-      out->put((low>>16)&255);
-      out->put((low>>8)&255);
-      out->put(low&255);
-      out->write(&buf[0], low);
-      low=0;
-    }
-    if (c>=0) buf[low++]=c;
-  }
-}
-
-//////////////////////////// Compiler /////////////////////////
-
-// Component names
-const char* compname[256]=
-  {"","const","cm","icm","match","avg","mix2","mix","isse","sse",0};
-
-// Opcodes
-const char* opcodelist[272]={
-"error","a++",  "a--",  "a!",   "a=0",  "",     "",     "a=r",
-"b<>a", "b++",  "b--",  "b!",   "b=0",  "",     "",     "b=r",
-"c<>a", "c++",  "c--",  "c!",   "c=0",  "",     "",     "c=r",
-"d<>a", "d++",  "d--",  "d!",   "d=0",  "",     "",     "d=r",
-"*b<>a","*b++", "*b--", "*b!",  "*b=0", "",     "",     "jt",
-"*c<>a","*c++", "*c--", "*c!",  "*c=0", "",     "",     "jf",
-"*d<>a","*d++", "*d--", "*d!",  "*d=0", "",     "",     "r=a",
-"halt", "out",  "",     "hash", "hashd","",     "",     "jmp",
-"a=a",  "a=b",  "a=c",  "a=d",  "a=*b", "a=*c", "a=*d", "a=",
-"b=a",  "b=b",  "b=c",  "b=d",  "b=*b", "b=*c", "b=*d", "b=",
-"c=a",  "c=b",  "c=c",  "c=d",  "c=*b", "c=*c", "c=*d", "c=",
-"d=a",  "d=b",  "d=c",  "d=d",  "d=*b", "d=*c", "d=*d", "d=",
-"*b=a", "*b=b", "*b=c", "*b=d", "*b=*b","*b=*c","*b=*d","*b=",
-"*c=a", "*c=b", "*c=c", "*c=d", "*c=*b","*c=*c","*c=*d","*c=",
-"*d=a", "*d=b", "*d=c", "*d=d", "*d=*b","*d=*c","*d=*d","*d=",
-"",     "",     "",     "",     "",     "",     "",     "",
-"a+=a", "a+=b", "a+=c", "a+=d", "a+=*b","a+=*c","a+=*d","a+=",
-"a-=a", "a-=b", "a-=c", "a-=d", "a-=*b","a-=*c","a-=*d","a-=",
-"a*=a", "a*=b", "a*=c", "a*=d", "a*=*b","a*=*c","a*=*d","a*=",
-"a/=a", "a/=b", "a/=c", "a/=d", "a/=*b","a/=*c","a/=*d","a/=",
-"a%=a", "a%=b", "a%=c", "a%=d", "a%=*b","a%=*c","a%=*d","a%=",
-"a&=a", "a&=b", "a&=c", "a&=d", "a&=*b","a&=*c","a&=*d","a&=",
-"a&~a", "a&~b", "a&~c", "a&~d", "a&~*b","a&~*c","a&~*d","a&~",
-"a|=a", "a|=b", "a|=c", "a|=d", "a|=*b","a|=*c","a|=*d","a|=",
-"a^=a", "a^=b", "a^=c", "a^=d", "a^=*b","a^=*c","a^=*d","a^=",
-"a<<=a","a<<=b","a<<=c","a<<=d","a<<=*b","a<<=*c","a<<=*d","a<<=",
-"a>>=a","a>>=b","a>>=c","a>>=d","a>>=*b","a>>=*c","a>>=*d","a>>=",
-"a==a", "a==b", "a==c", "a==d", "a==*b","a==*c","a==*d","a==",
-"a<a",  "a<b",  "a<c",  "a<d",  "a<*b", "a<*c", "a<*d", "a<",
-"a>a",  "a>b",  "a>c",  "a>d",  "a>*b", "a>*c", "a>*d", "a>",
-"",     "",     "",     "",     "",     "",     "",     "",
-"",     "",     "",     "",     "",     "",     "",     "lj",
-"post", "pcomp","end",  "if",   "ifnot","else", "endif","do",
-"while","until","forever","ifl","ifnotl","elsel",";",    0};
-
-// Advance in to start of next token. Tokens are delimited by white
-// space. Comments inclosed in ((nested) parenthsis) are skipped.
-void Compiler::next() {
-  
-  for (; *in; ++in) {
-    if (*in=='\n') ++line;
-    if (*in=='(') state+=1+(state<0);
-    else if (state>0 && *in==')') --state;
-    else if (state<0 && *in<=' ') state=0;
-    else if (state==0 && *in>' ') {state=-1; break;}
-  }
-  if (!*in) error("unexpected end of config");
-}
 
 // convert to lower case
 int tolower(int c) {return (c>='A' && c<='Z') ? c+'a'-'A' : c;}
-
-// return true if in==word up to white space or '(', case insensitive
-bool Compiler::matchToken(const char* word) {
-  const char* a=in;
-  for (; (*a>' ' && *a!='(' && *word); ++a, ++word)
-    if (tolower(*a)!=tolower(*word)) return false;
-  return !*word && (*a<=' ' || *a=='(');
-}
-
-// Print error message and exit
-void Compiler::syntaxError(const char* msg, const char* expected) {
-  Array<char> sbuf(128);  // error message to report
-  char* s=&sbuf[0];
-  strcat(s, "Config line ");
-  for (int i=strlen(s), r=1000000; r; r/=10)  // append line number
-    if (line/r) s[i++]='0'+line/r%10;
-  strcat(s, " at ");
-  for (int i=strlen(s); i<40 && *in>' '; ++i)  // append token found
-    s[i]=*in++;
-  strcat(s, ": ");
-  strncat(s, msg, 40);  // append message
-  if (expected) {
-    strcat(s, ", expected: ");
-    strncat(s, expected, 20);  // append expected token if any
-  }
-  error(s);
-}
-
-// Read a token, which must be in the NULL terminated list or else
-// exit with an error. If found, return its index.
-int Compiler::rtoken(const char* list[]) {
-
-  next();
-  for (int i=0; list[i]; ++i)
-    if (matchToken(list[i]))
-      return i;
-  syntaxError("unexpected");
-
-  return -1; // not reached
-}
-
-// Read a token which must be the specified value s
-void Compiler::rtoken(const char* s) {
-
-  next();
-  if (!matchToken(s)) syntaxError("expected", s);
-}
-
-// Read a number in (low...high) or exit with an error
-// For numbers like $N+M, return arg[N-1]+M
-int Compiler::rtoken(int low, int high) {
-  next();
-  int r=0;
-  if (in[0]=='$' && in[1]>='1' && in[1]<='9') {
-    if (in[2]=='+') r=atoi(in+3);
-    if (args) r+=args[in[1]-'1'];
-  }
-  else if (in[0]=='-' || (in[0]>='0' && in[0]<='9')) r=atoi(in);
-  else syntaxError("expected a number");
-  if (r<low) syntaxError("number too low");
-  if (r>high) syntaxError("number too high");
-  return r;
-}
-
-// Compile HCOMP or PCOMP code. Exit on error. Return
-// code for end token (POST, PCOMP, END)
-int Compiler::compile_comp(ZPAQL& z) {
-  int op=0;
-  const int comp_begin=z.hend;
-  while (true) {
-    op=rtoken(opcodelist);
-    if (op==POST || op==PCOMP || op==END) break;
-    int operand=-1; // 0...255 if 2 bytes
-    int operand2=-1;  // 0...255 if 3 bytes
-    if (op==IF) {
-      op=JF;
-      operand=0; // set later
-      if_stack.push(z.hend+1); // save jump target location
-    }
-    else if (op==IFNOT) {
-      op=JT;
-      operand=0;
-      if_stack.push(z.hend+1); // save jump target location
-    }
-    else if (op==IFL || op==IFNOTL) {  // long if
-      if (op==IFL) z.header[z.hend++]=(JT);
-      if (op==IFNOTL) z.header[z.hend++]=(JF);
-      z.header[z.hend++]=(3);
-      op=LJ;
-      operand=operand2=0;
-      if_stack.push(z.hend+1);
-    }
-    else if (op==ELSE || op==ELSEL) {
-      if (op==ELSE) op=JMP, operand=0;
-      if (op==ELSEL) op=LJ, operand=operand2=0;
-      int a=if_stack.pop();  // conditional jump target location
-   
-      if (z.header[a-1]!=LJ) {  // IF, IFNOT
-      
-        int j=z.hend-a+1+(op==LJ); // offset at IF
-
-        if (j>127) syntaxError("IF too big, try IFL, IFNOTL");
-        z.header[a]=j;
-      }
-      else {  // IFL, IFNOTL
-        int j=z.hend-comp_begin+2+(op==LJ);
-     
-        z.header[a]=j&255;
-        z.header[a+1]=(j>>8)&255;
-      }
-      if_stack.push(z.hend+1);  // save JMP target location
-    }
-    else if (op==ENDIF) {
-      int a=if_stack.pop();  // jump target address
-  
-      int j=z.hend-a-1;  // jump offset
-   
-      if (z.header[a-1]!=LJ) {
-   
-        if (j>127) syntaxError("IF too big, try IFL, IFNOTL, ELSEL\n");
-        z.header[a]=j;
-      }
-      else {
-
-        j=z.hend-comp_begin;
-        z.header[a]=j&255;
-        z.header[a+1]=(j>>8)&255;
-      }
-    }
-    else if (op==DO) {
-      do_stack.push(z.hend);
-    }
-    else if (op==WHILE || op==UNTIL || op==FOREVER) {
-      int a=do_stack.pop();
-  
-      int j=a-z.hend-2;
- 
-      if (j>=-127) {  // backward short jump
-        if (op==WHILE) op=JT;
-        if (op==UNTIL) op=JF;
-        if (op==FOREVER) op=JMP;
-        operand=j&255;
-      }
-      else {  // backward long jump
-        j=a-comp_begin;
-    
-        if (op==WHILE) {
-          z.header[z.hend++]=(JF);
-          z.header[z.hend++]=(3);
-        }
-        if (op==UNTIL) {
-          z.header[z.hend++]=(JT);
-          z.header[z.hend++]=(3);
-        }
-        op=LJ;
-        operand=j&255;
-        operand2=j>>8;
-      }
-    }
-    else if ((op&7)==7) { // 2 byte operand, read N
-      if (op==LJ) {
-        operand=rtoken(0, 65535);
-        operand2=operand>>8;
-        operand&=255;
-      }
-      else if (op==JT || op==JF || op==JMP) {
-        operand=rtoken(-128, 127);
-        operand&=255;
-      }
-      else
-        operand=rtoken(0, 255);
-    }
-    if (op>=0 && op<=255)
-      z.header[z.hend++]=(op);
-    if (operand>=0)
-      z.header[z.hend++]=(operand);
-    if (operand2>=0)
-      z.header[z.hend++]=(operand2);
-    if (z.hend>=z.header.isize()-130 || z.hend-z.hbegin+z.cend-2>65535)
-      syntaxError("program too big");
-  }
-  z.header[z.hend++]=(0); // END
-  return op;
-}
-
-// Compile a configuration file. Store COMP/HCOMP section in hcomp.
-// If there is a PCOMP section, store it in pcomp and store the PCOMP
-// command in pcomp_cmd. Replace "$1..$9+n" with args[0..8]+n
-
-Compiler::Compiler(const char* in_, int* args_, ZPAQL& hz_, ZPAQL& pz_,
-                   Writer* out2_): in(in_), args(args_), hz(hz_), pz(pz_),
-                   out2(out2_), if_stack(1000), do_stack(1000) {
-  line=1;
-  state=0;
-  hz.clear();
-  pz.clear();
-  hz.header.resize(68000); 
-
-  // Compile the COMP section of header
-  rtoken("comp");
-  hz.header[2]=rtoken(0, 255);  // hh
-  hz.header[3]=rtoken(0, 255);  // hm
-  hz.header[4]=rtoken(0, 255);  // ph
-  hz.header[5]=rtoken(0, 255);  // pm
-  const int n=hz.header[6]=rtoken(0, 255);  // n
-  hz.cend=7;
-  for (int i=0; i<n; ++i) {
-    rtoken(i, i);
-    CompType type=CompType(rtoken(compname));
-    hz.header[hz.cend++]=type;
-    int clen=libzpaq::compsize[type&255];
-    if (clen<1 || clen>10) syntaxError("invalid component");
-    for (int j=1; j<clen; ++j)
-      hz.header[hz.cend++]=rtoken(0, 255);  // component arguments
-  }
-  hz.header[hz.cend++];  // end
-  hz.hbegin=hz.hend=hz.cend+128;
-
-  // Compile HCOMP
-  rtoken("hcomp");
-  int op=compile_comp(hz);
-
-  // Compute header size
-  int hsize=hz.cend-2+hz.hend-hz.hbegin;
-  hz.header[0]=hsize&255;
-  hz.header[1]=hsize>>8;
-
-  // Compile POST 0 END
-  if (op==POST) {
-    rtoken(0, 0);
-    rtoken("end");
-  }
-
-  // Compile PCOMP pcomp_cmd ; program... END
-  else if (op==PCOMP) {
-    pz.header.resize(68000);
-    pz.header[4]=hz.header[4];  // ph
-    pz.header[5]=hz.header[5];  // pm
-    pz.cend=8;
-    pz.hbegin=pz.hend=pz.cend+128;
-
-    // get pcomp_cmd ending with ";" (case sensitive)
-    next();
-    while (*in && *in!=';') {
-      if (out2)
-        out2->put(*in);
-      ++in;
-    }
-    if (*in) ++in;
-
-    // Compile PCOMP
-    op=compile_comp(pz);
-    int len=pz.cend-2+pz.hend-pz.hbegin;  // insert header size
- 
-    pz.header[0]=len&255;
-    pz.header[1]=len>>8;
-    if (op!=END)
-      syntaxError("expected END");
-  }
-  else if (op!=END)
-    syntaxError("expected END or POST 0 END or PCOMP cmd ; ... END");
-}
-
-///////////////////// Compressor //////////////////////
 
 // Write 13 byte start tag
 // "\x37\x6B\x53\x74\xA0\x31\x83\xD3\x8C\xB2\x28\xB0\xD3"
@@ -3292,7 +2916,7 @@ int ZPAQL::assemble() {
     put5(0x48897424,56);      // mov [rsp+56], rsi
     put5(0x48895424,48);      // mov [rsp+48], rdx
     put5(0x48894c24,40);      // mov [rsp+40], rcx
-#if defined(unix) && !defined(__CYGWIN__)
+#if defined(unix)
     put2l(0x48bf, this);      // mov rdi, this
 #else  // Windows
     put2l(0x48b9, this);      // mov rcx, this
@@ -3904,9 +3528,6 @@ void ZPAQL::run(U32 input) {
 
 
 
-using std::string;
-using std::vector;
-using std::map;
 
 // Handle errors in libzpaq and elsewhere
 void libzpaq::error(const char* msg) {
@@ -3914,7 +3535,6 @@ void libzpaq::error(const char* msg) {
   exit(0);
 }
 using libzpaq::error;
-
 
 // C++ strings are cute, but very slow. Let's go back to C
 inline char *  migliaia(uint64_t n)
@@ -4314,8 +3934,6 @@ void list_print_datetime(void)
 
 }
 
- 
- 
 bool list_Archive::open(const char* filename, const char* password, int mode_,
                    int64_t newsize, int64_t offset, const char* salt) {
 
@@ -4539,47 +4157,6 @@ public:
 
 ////////////////////////////// misc ///////////////////////////////////
 
-// In Windows convert upper case to lower case.
-inline int list_tolowerW(int c) {
-#ifndef unix
-  if (c>='A' && c<='Z') return c-'A'+'a';
-#endif
-  return c;
-}
-
-// Return true if strings a == b or a+"/" is a prefix of b
-// or a ends in "/" and is a prefix of b.
-// Match ? in a to any char in b.
-// Match * in a to any string in b.
-// In Windows, not case sensitive.
-bool list_ispath(const char* a, const char* b) {
-  for (; *a; ++a, ++b) {
-    const int ca=list_tolowerW(*a);
-    const int cb=list_tolowerW(*b);
-    if (ca=='*') {
-      while (true) {
-        if (list_ispath(a+1, b)) return true;
-        if (!*b) return false;
-        ++b;
-      }
-    }
-    else if (ca=='?') {
-      if (*b==0) return false;
-    }
-    else if (ca==cb && ca=='/' && a[1]==0)
-      return true;
-    else if (ca!=cb)
-      return false;
-  }
-  return *b==0 || *b=='/';
-}
-
-// Convert string to lower case
-string list_lowercase(string s) {
-  for (unsigned i=0; i<s.size(); ++i)
-    if (s[i]>='A' && s[i]<='Z') s[i]+='a'-'A';
-  return s;
-}
 
 // Read 4 byte little-endian int and advance s
 int list_btoi(const char* &s) {
@@ -4593,36 +4170,6 @@ int64_t list_btol(const char* &s) {
   return r+(int64_t(list_btoi(s))<<32);
 }
 
-// Convert x to 4 byte little-endian string
-string list_itob(unsigned x) {
-  string s(4, '\0');
-  s[0]=x, s[1]=x>>8, s[2]=x>>16, s[3]=x>>24;
-  return s;
-}
-
-// convert to 8 byte little-endian string
-string list_ltob(int64_t x) {
-  string s(8, '\0');
-  s[0]=x,     s[1]=x>>8,  s[2]=x>>16, s[3]=x>>24;
-  s[4]=x>>32, s[5]=x>>40, s[6]=x>>48, s[7]=x>>56;
-  return s;
-}
-
-// Convert decimal, octal (leading o) or hex (leading x) string to int
-int list_ntoi(const char* s) {
-  int n=0, base=10, sign=1;
-  for (; *s; ++s) {
-    int c=*s;
-    if (isupper(c)) c=tolower(c);
-    if (!n && c=='x') base=16;
-    else if (!n && c=='o') base=8;
-    else if (!n && c=='-') sign=-1;
-    else if (c>='0' && c<='9') n=n*base+c-'0';
-    else if (base==16 && c>='a' && c<='f') n=n*base+c-'a'+10;
-    else break;
-  }
-  return n*sign;
-}
 
 /////////////////////////// read_password ////////////////////////////
 
@@ -4697,7 +4244,6 @@ int list_read_password(char* hash, int repeats,
 // Methods add to, extract from, compare, and list the archive.
 
 // enum for list_HT::csize and version
-static const int64_t LIST_EXTRACTED= 0x7FFFFFFFFFFFFFFELL;  // decompressed?
 static const int64_t LIST_HT_BAD=   -0x7FFFFFFFFFFFFFFALL;  // no such frag
 static const int64_t LIST_DEFAULT_VERSION=99999999999999LL; // unless -until
 
@@ -4790,7 +4336,7 @@ private:
 void list_Jidac::usage() 
 {
 	printf("List zpaq archive in 'deduplicated' list\n\n");
-	printf("GitHub            : https://sourceforge.net/projects/zpaqlist\n");
+	printf("GitHub            :https://github.com/fcorbelli/zpaqlist\n");
 	printf("\n");
 	printf("Mandatory command : l\n");
 	printf("Optional switches : -distinct,-pakka,-all,-key password,-until version,-out logfile.txt\n");
@@ -4964,8 +4510,8 @@ int list_Jidac::doCommand(int argc, const char** argv) {
 	}
 
 	// Execute command
-	list_print_datetime();
-	printf( "zpaqlist " ZPAQLIST_VERSION " compiled " __DATE__"\n");
+	///list_print_datetime();
+	printf( "zpaqlist v" ZPAQLIST_VERSION " (C) 2023 Franco Corbelli\n");
 	if (command=="-list") 
 		return mylist();
 	else 
@@ -5341,7 +4887,7 @@ int64_t list_Jidac::list_read_archive(int *errors, const char* arc) {
 
                 // Compute hashes
                 if (sum+f*4+8==os.size()) {
-                  printf( "Computing hashes for %d bytes\n", sum);
+                  printf( "Computing hashes for %s bytes\n", migliaia(sum));
                   libzpaq::SHA1 sha1;
                   p=os.c_str();
                   for (unsigned i=0; i<f; ++i) {
@@ -5359,8 +4905,8 @@ int64_t list_Jidac::list_read_archive(int *errors, const char* arc) {
             // Correct bad offsets
 
             if (ht[num].csize!=block_offset) {
-              printf( "Changing block %d offset from %1.0f to %1.0f\n",
-                     num, double(ht[num].csize), double(block_offset));
+              printf( "Changing block %s offset from %1.0f to %1.0f\n",
+                     migliaia(num), double(ht[num].csize), double(block_offset));
               ht[num].csize=block_offset;
             }
           }
@@ -5444,7 +4990,6 @@ int64_t list_Jidac::list_read_archive(int *errors, const char* arc) {
     }
   }
   
-  
 	fprintf(list_outputlog, "!%d\n", list_size(ver)-1); 
 	list_print_datetime();
 	printf( "OUTPUT...V %d, F %d, %s bytes %d blocks Otime %1.3f s\n", 
@@ -5462,7 +5007,7 @@ int list_Jidac::mylist()
 	list_outputlog=stdout;
 	
 	if (archive=="")
-			exit(1);
+		exit(1);
 		
 	if (fileoutput!="")
 		list_outputlog=fopen(fileoutput.c_str(),"w");
@@ -5507,7 +5052,7 @@ int list_Jidac::mylist()
 	
 	}
 	/// I need line numbers at the head, not at the tail, of the output
-	fprintf(list_outputlog, "+%d\n",righe);
+	fprintf(list_outputlog, "+%d\n",(int)righe);
 	
 	unsigned int blocco = (filelist.size() / 10)+1;
 	int64_t startoutput=list_mtime();
@@ -5517,7 +5062,7 @@ int list_Jidac::mylist()
 		if ((fi+1) % blocco==0)
 		{
 			list_print_datetime();
-			printf("W %03d%% %08d/%.08d\n",(dieci++)*10,fi+1,(int)filelist.size());
+			printf("W %03d%% %08d/%.08d\n",int((dieci++)*10),int(fi+1),(int)filelist.size());
 		}
 		list_DTMap::const_iterator p=filelist[fi];
 		for (unsigned i=0; i<p->second.dtv.size(); ++i) 
